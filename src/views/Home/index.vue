@@ -126,6 +126,11 @@ const onDragEnd = (e) => {
           text: "Welcome to LeaferJS",
           draggable: true,
           editable: true,
+          event: {
+            click: (e) => {
+              console.log('text click---', e)
+            }
+          }
         })
       );
       break;
