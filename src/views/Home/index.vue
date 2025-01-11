@@ -2,12 +2,9 @@
   <div class="box">
     <section class="left">
       <div v-for="node in nodes" :key="node.type">
-        <el-button
-          draggable="true"
-          @dragstart="startDrag($event, node)"
-          :style="{ width: btnWidth + 'px', height: btnHeight + 'px' }"
-          >{{ node.name }}</el-button
-        >
+        <el-button draggable="true" @dragstart="startDrag($event, node)">{{
+          node.name
+        }}</el-button>
       </div>
     </section>
     <section class="right">
@@ -36,9 +33,13 @@ import {
   Point,
   UI,
   PointerEvent,
+  ZoomEvent,
+  RotateEvent,
 } from "leafer-ui";
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
+import "@leafer-in/view";
+import "@leafer-in/viewport"; // 导入视口插件
 const nodes = [
   {
     name: "矩形",
@@ -51,6 +52,16 @@ const nodes = [
   {
     name: "图片",
     type: "image",
+    url: "http://gips2.baidu.com/it/u=195724436,3554684702&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",
+    width: 100,
+    height: 100
+  },
+  {
+    name: "图片",
+    type: "image",
+    url: "http://gips1.baidu.com/it/u=1658389554,617110073&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",
+    width: 200,
+    height: 200
   },
 ];
 let selectItem = null;
@@ -62,12 +73,27 @@ let mousePoint = {
 const initCanvas = () => {
   const app = new App({
     view: "canvas-main",
-    ground: { type: 'design' }, // 可选
+    tree: {
+      type: "viewport", // 给tree层添加视口
+    },
+    zoom: {
+      min: 0.9,
+      max: 2,
+    },
+    wheel: {
+      zoomMode: true,
+    },
     editor: {},
   });
-  // app.ground = app.addLeafer({ type: 'design' })
-  // app.ground.add(background)
+  // 获取画布缩放比例
+  app.on(ZoomEvent.ZOOM, function (e) {
+    console.log("zoom---", e.scale);
+  });
   leafer.value = app;
+
+  // leafer.value.editor.on(EditorEvent.SELECT, (e) =>{
+  //   console.log('select---', e.editor)
+  // })
 };
 const startDrag = (e, node) => {
   selectItem = node;
@@ -89,19 +115,7 @@ const onDragEnd = (e) => {
   console.log("node---", node);
   switch (node.type) {
     case "rect":
-      // item = new Rect({
-      //   fill: "skyblue",
-      //   stroke: "blue",
-      //   strokeWidth: 1,
-      //   editable: true,
-      // });
-      leafer.value.tree.add(
-        Rect.one(
-          { editable: true, fill: "#FEB027", cornerRadius: [20, 0, 0, 20] },
-          e.offsetX,
-          e.offsetY
-        )
-      );
+      addRect(e);
       break;
     case "text":
       leafer.value.tree.add(
@@ -116,24 +130,70 @@ const onDragEnd = (e) => {
       );
       break;
     case "image":
-      leafer.value.tree.add(
-        new Rect({
-          x: e.offsetX,
-          y: e.offsetY,
-          width: 200,
-          height: 200,
-          fill: {
-            type: "image",
-            url: "http://gips2.baidu.com/it/u=195724436,3554684702&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",
-            mode: "stretch",
-          },
-          draggable: true,
-          editable: true,
-        })
-      );
+      addImage(e, node.width, node.height, node.url);
   }
 
   selectItem = null;
+};
+
+const addRect = (e) => {
+  leafer.value.tree.add(
+    Rect.one(
+      {
+        editable: true,
+        fill: "red",
+        cornerRadius: [20, 0, 0, 20],
+        event: {
+          click: function (e) {
+            console.log("click---", e.current);
+            e.current.fill = "blue";
+          },
+        },
+      },
+      e.offsetX,
+      e.offsetY
+    )
+  );
+};
+const addImage = (e, width, height, url) => {
+  const rect = new Rect({
+    x: e.offsetX,
+    y: e.offsetY,
+    width: width,
+    height: height,
+    fill: {
+      type: "image",
+      url: url,
+      mode: "stretch",
+    },
+    event: {
+      // 点击事件
+      click: function (e) {
+        const rect = e.current;
+        console.log("Rect信息:", {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          fill: rect.fill,
+          cornerRadius: rect.cornerRadius,
+        });
+      },
+      // 拖拽事件
+      drag: function (e) {
+        console.log("drag---", e.current.x, e.current.offsetX);
+      },
+      rotate: function (e) {
+        console.log("rotate---", e);
+      },
+    },
+    draggable: true,
+    editable: true,
+  });
+  leafer.value.tree.add(rect);
+  rect.on(RotateEvent.ROTATE, (e) => {
+    console.log("rotate", e);
+  });
 };
 
 onMounted(() => {
